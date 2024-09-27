@@ -1,52 +1,66 @@
-const URL = require('url').URL
-const path = require('path')
-const puppeteer = require('puppeteer')
-const faker = require('faker')
-const ms = require('ms')
+const { URL } = require("url");
+const path = require("path");
+const puppeteer = require("puppeteer");
+const faker = require("faker");
+const ms = require("ms");
+const fs = require("fs");
 
 const generateFilename = () => {
-  const name = faker.system.fileName()
-  const now = Date.now()
+  const name = faker.system.fileName();
+  const now = Date.now();
 
-  return `${name}_${now}.pdf`
-}
+  return `${name}_${now}.pdf`;
+};
+
+const ensureDirectoryExistence = (filePath) => {
+  const dirname = path.dirname(filePath);
+  if (fs.existsSync(dirname)) {
+    return true;
+  }
+  fs.mkdirSync(dirname, { recursive: true });
+};
 
 const main = async () => {
   try {
-    if (!process.argv[2]) throw new Error('URL is required')
+    if (!process.argv[2]) throw new Error("URL is required");
 
-    const targetUrl = new URL(process.argv[2])
-    const targetPath = path.normalize(`./pdfs/${generateFilename()}`)
+    const targetUrl = new URL(process.argv[2]);
+    const targetPath = path.normalize(`./pdfs/${generateFilename()}`);
 
-    console.log(`will open ${targetUrl}`)
+    ensureDirectoryExistence(targetPath);
 
-    const browser = await puppeteer.launch()
-    const page = await browser.newPage()
+    console.log(`will open ${targetUrl}`);
 
-    page.setDefaultTimeout(ms('1m'))
+    const browser = await puppeteer.launch({ headless: true });
+    const page = await browser.newPage();
 
-    console.log('browser opened')
+    page.setDefaultTimeout(ms("1m"));
 
-    await page.goto(targetUrl.toString(), { waitUntil: 'load' })
-    
-    if (await page.$('div.modal-mask')) {
-      console.log('found modal, clicking buttons')
+    console.log("browser opened");
 
-      const button = await page.$('button')
+    await page.goto(targetUrl.toString(), { waitUntil: "load" });
 
-      await button.click()
+    if (await page.$("div.modal-mask")) {
+      console.log("found modal, clicking buttons");
+
+      const button = await page.$("button");
+
+      await button.click();
     }
 
-    await page.pdf({ path: targetPath, format: 'A4' })
+    await page.pdf({ path: targetPath, format: "A4" });
 
-    console.log(`PDF file is generated at ${targetPath}`)
+    console.log(`PDF file is generated at ${targetPath}`);
 
-    await browser.close()
+    await browser.close();
   } catch (err) {
-    console.error(err)
+    console.error(err);
+    throw err;
   }
 
-  process.exit(0)
-}
+  process.exit(0);
+};
 
-main()
+main().catch(console.error);
+
+module.exports = { main };
